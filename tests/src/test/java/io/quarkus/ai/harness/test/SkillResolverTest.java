@@ -75,15 +75,15 @@ class SkillResolverTest {
     @Test
     @DisplayName("GitHub repo URL with #branch/subpath clones and resolves correctly")
     void resolveGitHubUrlWithExplicitBranch() throws Exception {
-        // Simulates: mvn test -Dai.skills=https://github.com/aureamunoz/quarkus-skills#add-new-migration-from-spring/skills/migrate-spring-to-quarkus
+        // Simulates: mvn test -Dai.skills=https://github.com/quarkusio/skills#main/skills/migrate-spring-to-quarkus
         //
         // The resolver splits on '#':
-        //   URL:     https://github.com/aureamunoz/quarkus-skills
-        //   branch:  add-new-migration-from-spring
+        //   URL:     https://github.com/quarkusio/skills
+        //   branch:  main
         //   subpath: skills/migrate-spring-to-quarkus
 
         Path result = resolver.resolve(
-                "https://github.com/aureamunoz/quarkus-skills#add-new-migration-from-spring/skills/migrate-spring-to-quarkus");
+                "https://github.com/quarkusio/skills#main/skills/migrate-spring-to-quarkus");
 
         assertTrue(Files.isDirectory(result),
                 "Resolved skill path should exist after clone: " + result);
