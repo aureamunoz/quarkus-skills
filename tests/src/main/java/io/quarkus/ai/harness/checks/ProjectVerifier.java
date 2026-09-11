@@ -51,13 +51,17 @@ public class ProjectVerifier {
      */
     public boolean noSpringDeps() {
         Path depsFile = projectDir.resolve(".maven-deps.txt");
-        int exitCode = runMaven("dependency:list", "-DskipTests",
-                "-DoutputFile=" + depsFile.toAbsolutePath());
-        if (exitCode != 0) {
-            System.out.println("      dependency:list failed, skipping no-spring-deps check");
-            return true;
+        try {
+            int exitCode = runMaven("dependency:list", "-DskipTests",
+                    "-DoutputFile=" + depsFile.toAbsolutePath());
+            if (exitCode != 0) {
+                System.out.println("      dependency:list failed, skipping no-spring-deps check");
+                return true;
+            }
+            return !fileContains(depsFile, "org.springframework");
+        } finally {
+            try { Files.deleteIfExists(depsFile); } catch (IOException ignored) {}
         }
-        return !fileContains(depsFile, "org.springframework");
     }
 
     /**
