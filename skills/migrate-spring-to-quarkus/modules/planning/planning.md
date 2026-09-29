@@ -2,10 +2,6 @@
 
 Scan the source project, collect migration decisions, and generate `<target>/migration-spec.yaml` as the binding contract for all downstream modules.
 
-## Preconditions
-
-- JDK check (`modules/jdk/jdk.md`) has passed.
-
 ## Gate Condition
 
 **ALWAYS** — runs before all transformation modules.
@@ -120,7 +116,7 @@ Every decision in the `decisions` block has a corresponding `<field>_source` fie
    - `<api_min_jdk>` — the minimum JDK required by that stream (e.g. `17` for Quarkus 3.x, `21` for Quarkus 4.x)
 
    **Pass 2 JDK check** — run immediately after the API call, before asking the user anything:
-   - Reuse the installed JDK version already captured by the jdk module.
+   - Reuse the installed JDK version already captured by the prerequisite module.
    - **Determine the target Quarkus version** for the check (first match wins):
      - Skill argument `quarkus_version` if provided
      - `quarkus_version` from `.quarkus-migration.yml` if present

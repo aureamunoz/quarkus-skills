@@ -85,7 +85,7 @@ Each module has a gate condition that determines whether it runs:
 
 | Module | Runs when |
 |---|---|
-| **jdk** | Always — stops migration if JDK < 21 |
+| **prerequisite** | Always — stops migration if JDK or build tool hard check fails |
 | **build** | Spring Boot starters/plugins found in build file |
 | **code** | Spring annotations found in Java sources |
 | **frontend** | Thymeleaf/JSP templates or static resources found |
@@ -103,14 +103,15 @@ skills/migrate-spring-to-quarkus/
 ├── modules/                          # Migration modules
 │   ├── planning/
 │   │   └── planning.md               #   Scan project, collect decisions, write migration-spec.yaml
-│   ├── jdk/
-│   │   └── jdk.md                    #   JDK version check
+│   ├── prerequisite/
+│   │   └── prerequisite.md           #   JDK version and build tool check
 │   ├── build/
 │   │   ├── build.md                  #   Build file migration (dispatches to Maven or Gradle)
 │   │   ├── maven.md                  #   Maven-specific: pom.xml, dependencies, plugins
 │   │   └── gradle.md                 #   Gradle-specific: build.gradle(.kts), plugins
 │   ├── code/
-│   │   └── code.md                   #   Java code: annotations, DI, REST, Data, Security
+│   │   ├── code.md                   #   Java code: annotations, DI, REST, Data, Security
+│   │   └── messaging.md              #   Messaging migration: Kafka, RabbitMQ, JMS -> Quarkus
 │   ├── frontend/
 │   │   └── frontend.md               #   Thymeleaf/JSP templates, static resources
 │   ├── testing/
