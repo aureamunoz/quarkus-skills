@@ -114,7 +114,8 @@ jobs:
       - name: Install ACP client and IBM Bob agent
         uses: ./base/.github/actions/acp-agent-action
         with:
-          bobshell_api_key: ${{ secrets.BOBSHELL_API_KEY }}
+          bobshell_version: 2.0.4
+          smallrye_acp_version: 0.2.0
 
       - name: Execute SKILL
         shell: bash

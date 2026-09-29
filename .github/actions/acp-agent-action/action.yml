@@ -4,7 +4,8 @@ description: Install Smallrye ACP client, Bob Shell v2
 inputs:
   bobshell_base_url:
     description: Base URL for Bob Shell v2 packages (version is appended automatically).
-    required: true
+    required: false
+    default: https://s3.us-south.cloud-object-storage.appdomain.cloud/bob-shell
   bobshell_version:
     description: Version of Bob Shell v2.
     required: true
