@@ -3,13 +3,18 @@ name: Execute AI SKILL using IBM Bob
 on:
   workflow_dispatch:
   workflow_run:
-    workflows: ["Build"]
+    workflows: ["PR Metadata"]
     types:
       - completed
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.workflow_run.head_branch || github.ref }}
   cancel-in-progress: true
+
+permissions:
+  contents: read
+  statuses: write
+  actions: read
 
 env:
   JAVA_VERSION: '21'
@@ -20,13 +25,73 @@ jobs:
     if: >
       github.repository_owner == 'quarkusio' &&
       (github.event_name == 'workflow_dispatch' ||
-      github.event.workflow_run.conclusion == 'success')
+      (github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'pull_request'))
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    permissions:
-      contents: read
     steps:
-      - name: Check out base branch (trusted action and workflow code)
+      - name: Download PR metadata
+        if: github.event_name == 'workflow_run'
+        uses: actions/download-artifact@v7
+        with:
+          name: pr-meta
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Read PR metadata
+        if: github.event_name == 'workflow_run'
+        id: pr
+        run: |
+          echo "number=$(cat pr_number)" >> "$GITHUB_OUTPUT"
+          echo "head_sha=$(cat head_sha)" >> "$GITHUB_OUTPUT"
+          echo "files_changed=$(cat files_changed)" >> "$GITHUB_OUTPUT"
+
+      - name: Get job URL
+        id: job
+        if: github.event_name == 'workflow_run'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data } = await github.rest.actions.listJobsForWorkflowRun({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: context.runId,
+            });
+            const job = data.jobs.find(j => j.name === 'Run ACP Agent with Skill');
+            core.setOutput('url', job?.html_url ?? `${process.env.GITHUB_SERVER_URL}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`);
+
+      - name: Skip if no skills/tests changes
+        if: github.event_name == 'workflow_run' && steps.pr.outputs.files_changed != 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: '${{ steps.pr.outputs.head_sha }}',
+              state: 'success',
+              context: 'AI Skill Run',
+              description: 'No skills/ or tests/ files changed — skipped'
+            });
+            core.info('No relevant files changed — skipping skill run');
+            process.exit(0);
+
+      - name: Set pending status
+        if: github.event_name == 'workflow_run' && steps.pr.outputs.files_changed == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: '${{ steps.pr.outputs.head_sha }}',
+              state: 'pending',
+              context: 'AI Skill Run',
+              description: 'Running AI skill test...',
+              target_url: '${{ steps.job.outputs.url }}'
+            });
+
+      - name: Check out base branch (trusted action code)
         uses: actions/checkout@v6
         with:
           ref: main
@@ -49,9 +114,7 @@ jobs:
       - name: Install ACP client and IBM Bob agent
         uses: ./base/.github/actions/acp-agent-action
         with:
-          bobshell_base_url: "https://s3.us-south.cloud-object-storage.appdomain.cloud/bob-shell"
-          bobshell_version: 2.0.4
-          smallrye_acp_version: 0.2.0
+          bobshell_api_key: ${{ secrets.BOBSHELL_API_KEY }}
 
       - name: Execute SKILL
         shell: bash
@@ -60,11 +123,6 @@ jobs:
           PROJECT_NAME: spring-rest-api
         run: |
           set -euo pipefail
-          
-          if [[ "${BOBSHELL_API_KEY}" != "true" ]]; then
-            echo "::error title=Bob configuration::BOBSHELL_API_KEY is missing"
-            exit 1
-          fi
 
           cd pr/tests
 
@@ -82,6 +140,23 @@ jobs:
             -Dai.projects=${PROJECT_NAME} \
             -Dai.skills=migrate-spring-to-quarkus \
             -Dai.review=true
+
+      - name: Set final status
+        if: github.event_name == 'workflow_run' && always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            if ('${{ steps.pr.outputs.files_changed }}' !== 'true') return;
+            const failed = '${{ job.status }}' === 'failure';
+            await github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: '${{ steps.pr.outputs.head_sha }}',
+              state: failed ? 'failure' : 'success',
+              context: 'AI Skill Run',
+              description: failed ? 'AI skill test failed' : 'AI skill test passed',
+              target_url: '${{ steps.job.outputs.url }}'
+            });
 
       - name: Upload run reports
         if: always()
