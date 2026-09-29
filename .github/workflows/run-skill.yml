@@ -68,7 +68,7 @@ jobs:
             await github.rest.repos.createCommitStatus({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              sha: '${{ steps.pr.outputs.head_sha }}',
+              sha: '${{ github.event.workflow_run.head_sha }}',
               state: 'success',
               context: 'AI Skill Run',
               description: 'No skills/ or tests/ files changed — skipped'
@@ -84,7 +84,7 @@ jobs:
             await github.rest.repos.createCommitStatus({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              sha: '${{ steps.pr.outputs.head_sha }}',
+              sha: '${{ github.event.workflow_run.head_sha }}',
               state: 'pending',
               context: 'AI Skill Run',
               description: 'Running AI skill test...',
@@ -152,7 +152,7 @@ jobs:
             await github.rest.repos.createCommitStatus({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              sha: '${{ steps.pr.outputs.head_sha }}',
+              sha: '${{ github.event.workflow_run.head_sha }}',
               state: failed ? 'failure' : 'success',
               context: 'AI Skill Run',
               description: failed ? 'AI skill test failed' : 'AI skill test passed',
