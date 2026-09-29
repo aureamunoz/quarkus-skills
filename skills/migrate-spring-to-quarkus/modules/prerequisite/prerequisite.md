@@ -3,6 +3,7 @@
 Validate that the local environment meets all hard requirements before any migration work begins.
 This module **ALWAYS** runs as the first step, before `planning`, `build`, and all transformation modules.
 If any **hard** check fails, the migration is aborted immediately.
+This module runs before planning — `migration-spec.yaml` does not exist yet — so the required version is resolved from available inputs using the priority order below.
 
 ## Preconditions
 
@@ -21,11 +22,24 @@ After all checks, print the summary table and apply the gate rule.
 
 ### 1. JDK Version
 
-- Capture the `VERSION` parameter from the prompt; if absent, check `.quarkus-migration.yml` in `<source>` for a `java_version` field; default to `17` if neither is set.
-- [ ] Run `java -version` and capture the output.
-- [ ] If the version is **>= VERSION**: record **PASS** and capture the exact version string for the summary table.
-- [ ] If the version is **< VERSION** or `java` is not found:
-    - **Warn the user**: "JDK VERSION or later is required for this migration. Currently installed: `<detected version or 'none'>`. Please install JDK VERSION and ensure it is on your `PATH` before retrying."
+#### Step 1: Resolve the required JDK version
+
+Use the first source that provides a value (highest priority first):
+
+| Priority | Source | How to read it |
+|---|---|---|
+| 1 | Skill argument | `java_version` passed directly when invoking the skill |
+| 2 | `.quarkus-migration.yml` | `java_version` field in `<source>/.quarkus-migration.yml` (if the file exists) |
+| 3 | Safe default | **17** — the absolute minimum required by any supported Quarkus version (Quarkus 3.x requires JDK 17; Quarkus 4.x requires JDK 21) |
+
+Call the resolved value `<required_jdk>`.
+
+#### Step 2: Check the installed JDK
+
+- [ ] Run `java -version` and capture the installed version.
+- [ ] If the installed version is **>= `<required_jdk>`**, record **PASS**, capture the exact version string for the summary table, and proceed to the next check.
+- [ ] If the installed version is **< `<required_jdk>`** or `java` is not found:
+    - **Warn the user**: "JDK `<required_jdk>` or later is required for this migration (resolved from: `<source>`). Currently installed: `<detected version or 'none'>`. Please install JDK `<required_jdk>` and ensure it is on your PATH before retrying."
     - Record as **FAIL (hard)**.
 
 ---
@@ -101,7 +115,7 @@ Print the relevant guidance for each hard failure:
 
 | Check | Remediation |
 |---|---|
-| JDK not found or < VERSION | Install JDK VERSION from https://adoptium.net and ensure `java` is on your `PATH` |
+| JDK not found or < `<required_jdk>` | Install JDK `<required_jdk>` from https://adoptium.net and ensure `java` is on your `PATH` |
 | Maven not found | Install Maven from https://maven.apache.org/download.cgi and ensure `mvn` is on your `PATH`, or add an `mvnw` wrapper to the project |
 | Gradle not found | Install Gradle from https://gradle.org/install or add a `gradlew` wrapper to the project |
 | No build descriptor | Ensure `<source>` points to a Maven or Gradle project root containing `pom.xml` or `build.gradle(.kts)` |
