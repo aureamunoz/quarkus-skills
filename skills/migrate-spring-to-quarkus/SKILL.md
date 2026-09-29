@@ -36,15 +36,7 @@ Load the relevant reference file when working on a module:
 | [references/config-map.md](references/config-map.md) | Build module: configuration property migration |
 
 
-## Step 1: Prerequisite & Planning
-
-First, load and execute [modules/prerequisite/prerequisite.md](modules/prerequisite/prerequisite.md). If any hard check fails (JDK, build tool), stop — do not proceed.
-
-Then, load and execute [modules/planning/planning.md](modules/planning/planning.md).
-
-The planning module performs the initial scan, detects features, collects user decisions, and writes `<target>/migration-spec.yaml`. All downstream modules rely on this specification as their single source of truth.
-
-## Step 2: Execute Modules
+## Step 1: Execute Modules
 
 ## Instructions
 
@@ -106,7 +98,7 @@ To run a single module outside the full migration flow, read all the files in th
 
 The module will use the current `<source>` and `<target>` paths and the chosen strategy (if already decided). If no strategy has been chosen, the module will ask.
 
-## Step 3: Verify the Migration
+## Step 2: Verify the Migration
 
 All verification checks run against `<target>`. Run each check in order. A check fails = stop and fix before continuing.
 
@@ -119,7 +111,7 @@ All verification checks run against `<target>`. Run each check in order. A check
 | 5 | **Starts up** | `cd <target> && ./mvnw quarkus:dev` / `cd <target> && ./gradlew quarkusDev` | App starts, `curl http://localhost:8080/q/health` returns UP |
 | 6 | **No leftover templates** | Search `<target>` for Thymeleaf/JSP references | None remaining (unless intentionally kept) |
 
-## Step 4: Migration Review (Self-Reflection)
+## Step 3: Migration Review (Self-Reflection)
 
 Answer each question honestly:
 
@@ -127,7 +119,7 @@ Answer each question honestly:
 2. **What required manual judgment?** Non-obvious decisions made.
 3. **What was left as TODO?** Every `// TODO: Migration required` comment and why.
 4. **Was any code removed?** What, where, justification. Flag runtime risks.
-5. **What checks failed initially?** Failures from Step 3 and how you fixed them.
+5. **What checks failed initially?** Failures from Step 2 and how you fixed them.
 6. **What's missing from the skill references?** Mappings you had to figure out.
 
 ### Migration Report
