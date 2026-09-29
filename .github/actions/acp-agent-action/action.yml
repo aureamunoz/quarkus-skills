@@ -19,7 +19,6 @@ runs:
     - name: Validate inputs
       shell: bash
       env:
-        API_KEY_PRESENT: ${{ inputs.bobshell_api_key != '' }}
         INSTALL_URL_PRESENT: ${{ inputs.bobshell_base_url != '' }}
       run: |
         set -euo pipefail
