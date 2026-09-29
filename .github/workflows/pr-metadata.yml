@@ -26,8 +26,6 @@ jobs:
       - name: Save PR metadata
         run: |
           mkdir -p /tmp/pr-meta
-          echo "${{ github.event.pull_request.number }}" > /tmp/pr-meta/pr_number
-          echo "${{ github.event.pull_request.head.sha }}" > /tmp/pr-meta/head_sha
           echo "${{ steps.files.outputs.changed }}" > /tmp/pr-meta/files_changed
 
       - name: Upload PR metadata

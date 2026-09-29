@@ -42,9 +42,9 @@ jobs:
         if: github.event_name == 'workflow_run'
         id: pr
         run: |
-          echo "number=$(cat pr_number)" >> "$GITHUB_OUTPUT"
-          echo "head_sha=$(cat head_sha)" >> "$GITHUB_OUTPUT"
-          echo "files_changed=$(cat files_changed)" >> "$GITHUB_OUTPUT"
+          FILES_CHANGED=$(cat files_changed)
+          [[ "$FILES_CHANGED" =~ ^(true|false)$ ]] || { echo "::error::Invalid files_changed value"; exit 1; }
+          echo "files_changed=$FILES_CHANGED" >> "$GITHUB_OUTPUT"
 
       - name: Get job URL
         id: job
