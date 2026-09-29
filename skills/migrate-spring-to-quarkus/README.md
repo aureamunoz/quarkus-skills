@@ -86,6 +86,7 @@ Each module has a gate condition that determines whether it runs:
 | Module | Runs when |
 |---|---|
 | **prerequisite** | Always — stops migration if JDK or build tool hard check fails |
+| **planning** | Always — runs after prerequisite; generates `migration-spec.yaml` |
 | **build** | Spring Boot starters/plugins found in build file |
 | **code** | Spring annotations found in Java sources |
 | **frontend** | Thymeleaf/JSP templates or static resources found |
