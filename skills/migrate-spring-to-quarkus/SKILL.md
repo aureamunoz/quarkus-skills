@@ -36,15 +36,7 @@ Load the relevant reference file when working on a module:
 | [references/config-map.md](references/config-map.md) | Build module: configuration property migration |
 
 
-## Step 1: JDK Check & Planning
-
-First, load and execute [modules/jdk/jdk.md](modules/jdk/jdk.md). If the JDK check fails, stop — do not proceed.
-
-Then, load and execute [modules/planning/planning.md](modules/planning/planning.md).
-
-The planning module performs the initial scan, detects features, collects user decisions, and writes `<target>/migration-spec.yaml`. All downstream modules rely on this specification as their single source of truth.
-
-## Step 2: Execute Modules
+## Step 1: Execute Modules
 
 ## Instructions
 
@@ -57,10 +49,10 @@ The planning module performs the initial scan, detects features, collects user d
 - For each module, evaluate whether it applies by inspecting `<source>`. A module executes only when its gate status is: **PASS**.
 - Inspect `<source>` to determine the gate result -- do not rely on blind grep commands; use your understanding of the codebase.
 
-| Module                                        | Gate Check (inspect `<source>`)                                                                                           | Gate Result                                                                              |
+| Module                                        | Gate Check                                                                                                                | Gate Result                                                                              |
 |-----------------------------------------------|---------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------|
-| [jdk](modules/jdk/jdk.md)                     | Pass 1: resolves absolute minimum JDK from argument / `.quarkus-migration.yml` / default (17); checks installed JDK meets that floor | **ALWAYS** — stop migration if installed JDK < resolved minimum |
-| [planning](modules/planning/planning.md)      | JDK check passed                                   | **ALWAYS** — generates `<target>/migration-spec.yaml`                                    |
+| [prerequisite](modules/prerequisite/prerequisite.md) | JDK version, build tool (Maven ≥ 3.6 recommended 3.9+ / Gradle ≥ 7 recommended 8.x), container runtime                           | **ALWAYS** — **ABORT** entire migration if any hard check fails; no subsequent module runs |
+| [planning](modules/planning/planning.md)      | Prerequisite check passed                                                                                                 | **ALWAYS** — generates `<target>/migration-spec.yaml`                                    |
 | [build](modules/build/build.md)               | Spring Boot parent/starters/`spring-boot-maven-plugin` in `pom.xml`, or Spring Boot/`io.spring.dependency-management` plugins in `build.gradle(.kts)` | **PASS** if Spring Boot build markers found; **SKIP** otherwise                          |
 | [code](modules/code/code.md)                  | Spring annotations in Java sources (`@Component`, `@Service`, `@Controller`, `@Repository`, `@Entity`, `@Autowired`, etc.) | **PASS** if Spring annotations found; **SKIP** otherwise                                 |
 | [messaging](modules/code/messaging.md)        | `@KafkaListener`, `@RabbitListener`, `@JmsListener`, `@SendTo`, `@EnableKafka`, `@EnableRabbit`, `KafkaTemplate`, `RabbitTemplate`, or `JmsTemplate` in Java sources | **PASS** if any found; **SKIP** otherwise                                                |
@@ -71,7 +63,16 @@ The planning module performs the initial scan, detects features, collects user d
 ### Execution Protocol
 
 ```
-FOR module IN [jdk, planning, build, code, messaging, frontend, testing, cleanup]:
+STEP 0 — PREREQUISITE GATE (mandatory, runs before everything else)
+  1. LOAD modules/prerequisite/prerequisite.md and execute all checks
+  2. IF prerequisite gate == FAIL
+       → log "Migration aborted — prerequisite gate failed: <failing check(s)>"
+       → STOP immediately. Do not evaluate or execute any further module.
+  3. IF prerequisite gate == PASS (warnings are allowed)
+       → log "Prerequisite gate: PASS — proceeding with migration"
+       → continue to the module loop below
+
+FOR module IN [planning, build, code, messaging, frontend, testing, cleanup]:
 
   1. EVALUATE — inspect <source> for the gate condition
   2. DECIDE
@@ -97,7 +98,7 @@ To run a single module outside the full migration flow, read all the files in th
 
 The module will use the current `<source>` and `<target>` paths and the chosen strategy (if already decided). If no strategy has been chosen, the module will ask.
 
-## Step 3: Verify the Migration
+## Step 2: Verify the Migration
 
 All verification checks run against `<target>`. Run each check in order. A check fails = stop and fix before continuing.
 
@@ -110,7 +111,7 @@ All verification checks run against `<target>`. Run each check in order. A check
 | 5 | **Starts up** | `cd <target> && ./mvnw quarkus:dev` / `cd <target> && ./gradlew quarkusDev` | App starts, `curl http://localhost:8080/q/health` returns UP |
 | 6 | **No leftover templates** | Search `<target>` for Thymeleaf/JSP references | None remaining (unless intentionally kept) |
 
-## Step 4: Migration Review (Self-Reflection)
+## Step 3: Migration Review (Self-Reflection)
 
 Answer each question honestly:
 
@@ -118,7 +119,7 @@ Answer each question honestly:
 2. **What required manual judgment?** Non-obvious decisions made.
 3. **What was left as TODO?** Every `// TODO: Migration required` comment and why.
 4. **Was any code removed?** What, where, justification. Flag runtime risks.
-5. **What checks failed initially?** Failures from Step 3 and how you fixed them.
+5. **What checks failed initially?** Failures from Step 2 and how you fixed them.
 6. **What's missing from the skill references?** Mappings you had to figure out.
 
 ### Migration Report
