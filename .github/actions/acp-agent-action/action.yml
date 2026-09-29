@@ -4,13 +4,13 @@ description: Install Smallrye ACP client, Bob Shell v2
 inputs:
   bobshell_base_url:
     description: Base URL for Bob Shell v2 packages (version is appended automatically).
-    required: false
+    required: true
   bobshell_version:
     description: Version of Bob Shell v2.
-    required: false
+    required: true
   smallrye_acp_version:
     description: Version of Smallrye ACP Java client.
-    required: false
+    required: true
 
 runs:
   using: composite
