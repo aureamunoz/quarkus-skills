@@ -3,7 +3,7 @@ name: Execute AI SKILL using IBM Bob
 on:
   workflow_dispatch:
   workflow_run:
-    workflows: ["Build"]
+    workflows: ["PR Metadata"]
     types:
       - completed
 
@@ -11,29 +11,100 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.workflow_run.head_branch || github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+  statuses: write
+  actions: read
+
 env:
   JAVA_VERSION: '21'
 
 jobs:
-  run-bob:
-    name: Run ACP Agent with Skill
+  check:
+    name: Check PR changes
     if: >
       github.repository_owner == 'quarkusio' &&
       (github.event_name == 'workflow_dispatch' ||
-      github.event.workflow_run.conclusion == 'success')
+      (github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'pull_request'))
+    runs-on: ubuntu-latest
+    outputs:
+      should_run: ${{ steps.pr.outputs.files_changed }}
+    steps:
+      - name: Download PR metadata
+        if: github.event_name == 'workflow_run'
+        uses: actions/download-artifact@v7
+        with:
+          name: pr-meta
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Read PR metadata
+        if: github.event_name == 'workflow_run'
+        id: pr
+        run: |
+          FILES_CHANGED=$(cat files_changed)
+          [[ "$FILES_CHANGED" =~ ^(true|false)$ ]] || { echo "::error::Invalid files_changed value"; exit 1; }
+          echo "files_changed=$FILES_CHANGED" >> "$GITHUB_OUTPUT"
+
+      - name: Set skipped status
+        if: github.event_name == 'workflow_run' && steps.pr.outputs.files_changed != 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: '${{ github.event.workflow_run.head_sha }}',
+              state: 'success',
+              context: 'AI Skill Run',
+              description: 'No skills/ or tests/ files changed — skipped'
+            });
+
+  run-bob:
+    name: Run ACP Agent with Skill
+    needs: check
+    if: needs.check.outputs.should_run == 'true' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    permissions:
-      contents: read
     steps:
-      - name: Check out base branch (trusted action and workflow code)
+      - name: Get job URL
+        id: job
+        if: github.event_name == 'workflow_run'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data } = await github.rest.actions.listJobsForWorkflowRun({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: context.runId,
+            });
+            const job = data.jobs.find(j => j.name === 'Run ACP Agent with Skill');
+            core.setOutput('url', job?.html_url ?? `${process.env.GITHUB_SERVER_URL}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`);
+
+      - name: Set pending status
+        if: github.event_name == 'workflow_run'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: '${{ github.event.workflow_run.head_sha }}',
+              state: 'pending',
+              context: 'AI Skill Run',
+              description: 'Running AI skill test...',
+              target_url: '${{ steps.job.outputs.url }}'
+            });
+
+      - name: Check out base branch (trusted action code)
         uses: actions/checkout@v6
         with:
           ref: main
           persist-credentials: false
           path: base
 
-      - name: Check out PR code under test
+      - name: Check out PR code using Commit SHA
         uses: actions/checkout@v6
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
@@ -48,6 +119,8 @@ jobs:
 
       - name: Install ACP client and IBM Bob agent
         uses: ./base/.github/actions/acp-agent-action
+        with:
+          bobshell_api_key: ${{ secrets.BOBSHELL_API_KEY }}
 
       - name: Execute SKILL
         shell: bash
@@ -73,6 +146,22 @@ jobs:
             -Dai.projects=${PROJECT_NAME} \
             -Dai.skills=migrate-spring-to-quarkus \
             -Dai.review=true
+
+      - name: Set final status
+        if: github.event_name == 'workflow_run' && always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const failed = '${{ job.status }}' === 'failure';
+            await github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: '${{ github.event.workflow_run.head_sha }}',
+              state: failed ? 'failure' : 'success',
+              context: 'AI Skill Run',
+              description: failed ? 'AI skill test failed' : 'AI skill test passed',
+              target_url: '${{ steps.job.outputs.url }}'
+            });
 
       - name: Upload run reports
         if: always()
