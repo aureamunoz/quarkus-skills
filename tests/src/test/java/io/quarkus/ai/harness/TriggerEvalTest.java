@@ -10,7 +10,6 @@ import tools.jackson.dataformat.yaml.YAMLMapper;
 
 import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -115,15 +114,11 @@ class TriggerEvalTest {
 
         String frontmatter = skillMdContent.substring(3, secondDash).trim();
 
-        try {
-            JsonNode root = YAML.readTree(frontmatter);
-            JsonNode desc = root.path("description");
-            if (desc.isMissingNode() || desc.asText("").isEmpty()) {
-                throw new IllegalStateException("No 'description' field found in SKILL.md frontmatter");
-            }
-            return desc.asText();
-        } catch (IOException e) {
-            throw new IllegalStateException("Failed to parse SKILL.md frontmatter: " + e.getMessage(), e);
+        JsonNode root = YAML.readTree(frontmatter);
+        JsonNode desc = root.path("description");
+        if (desc.isMissingNode() || desc.asText("").isEmpty()) {
+            throw new IllegalStateException("No 'description' field found in SKILL.md frontmatter");
         }
+        return desc.asText();
     }
 }

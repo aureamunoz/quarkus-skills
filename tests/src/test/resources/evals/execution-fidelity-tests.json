@@ -19,7 +19,7 @@
       "min_calls": [
         { "tool": "sourceValidate", "min": 1 }
       ],
-      "required": false
+      "required": true
     }
   ]
 }
